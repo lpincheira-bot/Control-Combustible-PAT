@@ -13,6 +13,7 @@ export interface Vehicle {
   patente: string;
   vehiculo: string;
   activo: boolean;
+  tipo_combustible: "diesel" | "bencina";
   created_at: string;
 }
 

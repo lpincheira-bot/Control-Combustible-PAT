@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useState, useEffect, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { Vehicle } from "@/lib/types";
@@ -9,7 +9,7 @@ function nowTimeValue() {
   const d = new Date();
   return `${String(d.getHours()).padStart(2, "0")}:${String(
     d.getMinutes()
-  ).padStart(2, "0")}`;
+  ).padStart(2, "0")}:00`;
 }
 
 function todayValue() {
@@ -31,10 +31,9 @@ export default function FuelForm({
   const supabase = createClient();
 
   const [vehicleId, setVehicleId] = useState(vehicles[0]?.id ?? "");
-  const [fecha, setFecha] = useState(todayValue());
-  const [hora, setHora] = useState(nowTimeValue());
   const [km, setKm] = useState("");
-  const [conteoInicial, setConteoInicial] = useState("");
+  const [conteoInicial, setConteoInicial] = useState<number | null>(null);
+  const [conteoLoading, setConteoLoading] = useState(false);
   const [litros, setLitros] = useState("");
   const [observaciones, setObservaciones] = useState("");
 
@@ -46,6 +45,29 @@ export default function FuelForm({
     conteoFinal: string;
   }>(null);
 
+  useEffect(() => {
+    if (!vehicleId) {
+      setConteoInicial(null);
+      return;
+    }
+    let cancelado = false;
+    setConteoLoading(true);
+    supabase
+      .rpc("get_ultimo_conteo", { p_vehicle_id: vehicleId })
+      .then(({ data, error }) => {
+        if (cancelado) return;
+        setConteoLoading(false);
+        if (error) {
+          setConteoInicial(0);
+          return;
+        }
+        setConteoInicial(data ?? 0);
+      });
+    return () => {
+      cancelado = true;
+    };
+  }, [vehicleId, supabase]);
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
@@ -54,15 +76,19 @@ export default function FuelForm({
       setError("Selecciona un vehículo.");
       return;
     }
+    if (conteoInicial === null || conteoLoading) {
+      setError("Espera un momento, se está calculando el conteo inicial.");
+      return;
+    }
 
     setLoading(true);
     const { error } = await supabase.from("fuel_logs").insert({
       driver_id: driverId,
       vehicle_id: vehicleId,
-      fecha,
-      hora_carga: `${hora}:00`,
+      fecha: todayValue(),
+      hora_carga: nowTimeValue(),
       km: km ? Number(km) : null,
-      conteo_inicial: Number(conteoInicial),
+      conteo_inicial: conteoInicial,
       litros: Number(litros),
       observaciones: observaciones || null,
     });
@@ -77,11 +103,10 @@ export default function FuelForm({
     setTicket({
       patente: vehicle?.patente ?? "",
       litros,
-      conteoFinal: (Number(conteoInicial) + Number(litros)).toFixed(2),
+      conteoFinal: (conteoInicial + Number(litros)).toFixed(2),
     });
 
     setKm("");
-    setConteoInicial("");
     setLitros("");
     setObservaciones("");
     router.refresh();
@@ -126,27 +151,6 @@ export default function FuelForm({
         </select>
       </Field>
 
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Fecha">
-          <input
-            required
-            type="date"
-            value={fecha}
-            onChange={(e) => setFecha(e.target.value)}
-            className="input tabular"
-          />
-        </Field>
-        <Field label="Hora de carga">
-          <input
-            required
-            type="time"
-            value={hora}
-            onChange={(e) => setHora(e.target.value)}
-            className="input tabular"
-          />
-        </Field>
-      </div>
-
       <Field label="Kilometraje">
         <input
           type="number"
@@ -161,16 +165,16 @@ export default function FuelForm({
 
       <div className="grid grid-cols-2 gap-3">
         <Field label="Conteo inicial">
-          <input
-            required
-            type="number"
-            inputMode="decimal"
-            step="0.01"
-            value={conteoInicial}
-            onChange={(e) => setConteoInicial(e.target.value)}
-            placeholder="1059614"
+          <div
             className="input tabular"
-          />
+            style={{ opacity: 0.7, cursor: "not-allowed" }}
+          >
+            {conteoLoading
+              ? "Calculando..."
+              : conteoInicial !== null
+                ? conteoInicial.toFixed(2)
+                : "-"}
+          </div>
         </Field>
         <Field label="Litros">
           <input
@@ -203,7 +207,7 @@ export default function FuelForm({
 
       <button
         type="submit"
-        disabled={loading || vehicles.length === 0}
+        disabled={loading || conteoLoading || vehicles.length === 0}
         className="w-full bg-accent text-accent-ink font-semibold py-3 rounded-sm disabled:opacity-60 active:scale-[0.99] transition"
       >
         {loading ? "Guardando..." : "Registrar carga"}
