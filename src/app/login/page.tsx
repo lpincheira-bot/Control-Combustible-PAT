@@ -22,7 +22,7 @@ export default function LoginPage() {
       enviar();
       return;
     }
-    if (pin.length < 8) {
+        if (pin.length < 4) {
       setPin((p) => p + tecla);
     }
   }
