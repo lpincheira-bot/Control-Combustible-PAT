@@ -8,6 +8,7 @@ const tabs = [
   { href: "/admin", label: "Registros" },
   { href: "/admin/vehiculos", label: "Vehículos" },
   { href: "/admin/conductores", label: "Conductores" },
+  { href: "/admin/contadores", label: "Contadores" },
 ];
 
 export default function AdminNav() {
