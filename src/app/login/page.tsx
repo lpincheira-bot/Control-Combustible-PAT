@@ -1,53 +1,47 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { loginConPin } from "./actions";
+
+const TECLAS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "borrar", "0", "ok"];
 
 export default function LoginPage() {
   const router = useRouter();
-  const supabase = createClient();
-
-  const [mode, setMode] = useState<"entrar" | "crear">("entrar");
-  const [nombre, setNombre] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [pin, setPin] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
 
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
+  function presionar(tecla: string) {
     setError(null);
-    setLoading(true);
+    if (tecla === "borrar") {
+      setPin((p) => p.slice(0, -1));
+      return;
+    }
+    if (tecla === "ok") {
+      enviar();
+      return;
+    }
+    if (pin.length < 8) {
+      setPin((p) => p + tecla);
+    }
+  }
 
-    if (mode === "entrar") {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      setLoading(false);
+  function enviar() {
+    if (pin.length < 4) {
+      setError("El PIN debe tener al menos 4 dígitos.");
+      return;
+    }
+    startTransition(async () => {
+      const { error } = await loginConPin(pin);
       if (error) {
-        setError("Correo o contraseña incorrectos.");
+        setError(error);
+        setPin("");
         return;
       }
       router.replace("/");
       router.refresh();
-      return;
-    }
-
-    // Crear cuenta (queda como conductor por defecto)
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { data: { nombre_completo: nombre, role: "conductor" } },
     });
-    setLoading(false);
-    if (error) {
-      setError(error.message);
-      return;
-    }
-    router.replace("/");
-    router.refresh();
   }
 
   return (
@@ -63,110 +57,50 @@ export default function LoginPage() {
         </div>
 
         <div className="bg-surface border border-line rounded-sm">
-          {/* Perforación estilo ticket */}
           <div className="flex justify-between px-4 pt-3 text-ink-muted text-xs tabular">
-            <span>{mode === "entrar" ? "INGRESO" : "NUEVA CUENTA"}</span>
+            <span>INGRESO CON PIN</span>
             <span>{new Date().toLocaleDateString("es-CL")}</span>
           </div>
 
-          <form onSubmit={handleSubmit} className="p-5 pt-3 space-y-4">
-            {mode === "crear" && (
-              <Field label="Nombre completo">
-                <input
-                  required
-                  value={nombre}
-                  onChange={(e) => setNombre(e.target.value)}
-                  placeholder="Juan Pérez"
-                  className="input"
+          <div className="p-5 pt-3 space-y-4">
+            <div className="pin-display">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <span
+                  key={i}
+                  className={`pin-dot ${i < pin.length ? "pin-dot-filled" : ""}`}
                 />
-              </Field>
-            )}
-
-            <Field label="Correo">
-              <input
-                required
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="conductor@empresa.cl"
-                className="input"
-              />
-            </Field>
-
-            <Field label="Contraseña">
-              <input
-                required
-                type="password"
-                minLength={6}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="input"
-              />
-            </Field>
+              ))}
+            </div>
 
             {error && (
-              <p className="text-danger text-sm border border-danger/40 bg-danger/10 rounded-sm px-3 py-2">
+              <p className="text-danger text-sm border border-danger/40 bg-danger/10 rounded-sm px-3 py-2 text-center">
                 {error}
               </p>
             )}
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-accent text-accent-ink font-semibold py-3 rounded-sm disabled:opacity-60 active:scale-[0.99] transition"
-            >
-              {loading
-                ? "Un momento..."
-                : mode === "entrar"
-                  ? "Iniciar sesión"
-                  : "Crear cuenta"}
-            </button>
-          </form>
+            <div className="keypad">
+              {TECLAS.map((tecla) => (
+                <button
+                  key={tecla}
+                  type="button"
+                  onClick={() => presionar(tecla)}
+                  disabled={isPending}
+                  className={`key ${tecla === "ok" ? "key-ok" : ""}`}
+                >
+                  {tecla === "borrar" ? "⌫" : tecla === "ok" ? "Ingresar" : tecla}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
-
-        <button
-          onClick={() => {
-            setError(null);
-            setMode(mode === "entrar" ? "crear" : "entrar");
-          }}
-          className="w-full text-center text-sm text-ink-muted mt-4"
-        >
-          {mode === "entrar"
-            ? "¿Eres nuevo? Crea tu cuenta de conductor"
-            : "¿Ya tienes cuenta? Inicia sesión"}
-        </button>
       </div>
 
       <style jsx global>{`
-        .input {
-          width: 100%;
-          background: var(--surface-2);
-          border: 1px solid var(--line);
-          border-radius: 2px;
-          padding: 0.65rem 0.75rem;
-          color: var(--ink);
+        .pin-display {
+          display: flex;
+          justify-content: center;
+          gap: 0.5rem;
         }
-        .input:focus {
-          outline: 2px solid var(--accent);
-          outline-offset: 1px;
-        }
-      `}</style>
-    </main>
-  );
-}
-
-function Field({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <label className="block">
-      <span className="block text-xs text-ink-muted mb-1.5">{label}</span>
-      {children}
-    </label>
-  );
-}
+        .pin-dot {
+          width: 14px;
+          height: 14px;
