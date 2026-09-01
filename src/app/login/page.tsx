@@ -29,7 +29,7 @@ export default function LoginPage() {
 
   function enviar() {
     if (pin.length < 4) {
-      setError("El PIN debe tener al menos 4 dígitos.");
+      setError("El PIN debe tener minimo 4 numeros.");
       return;
     }
     startTransition(async () => {
@@ -63,11 +63,17 @@ export default function LoginPage() {
           </div>
 
           <div className="p-5 pt-3 space-y-4">
-            <div className="pin-display">
+            <div className="flex justify-center gap-2">
               {Array.from({ length: 8 }).map((_, i) => (
                 <span
                   key={i}
-                  className={`pin-dot ${i < pin.length ? "pin-dot-filled" : ""}`}
+                  className="inline-block rounded-full border"
+                  style={{
+                    width: 14,
+                    height: 14,
+                    borderColor: i < pin.length ? "var(--accent)" : "var(--line)",
+                    backgroundColor: i < pin.length ? "var(--accent)" : "transparent",
+                  }}
                 />
               ))}
             </div>
@@ -78,29 +84,26 @@ export default function LoginPage() {
               </p>
             )}
 
-            <div className="keypad">
+            <div className="grid grid-cols-3 gap-2">
               {TECLAS.map((tecla) => (
                 <button
                   key={tecla}
                   type="button"
                   onClick={() => presionar(tecla)}
                   disabled={isPending}
-                  className={`key ${tecla === "ok" ? "key-ok" : ""}`}
+                  className={
+                    tecla === "ok"
+                      ? "bg-accent text-accent-ink font-semibold text-sm rounded-sm py-4"
+                      : "bg-surface-2 border border-line rounded-sm py-4 text-lg text-ink"
+                  }
                 >
-                  {tecla === "borrar" ? "⌫" : tecla === "ok" ? "Ingresar" : tecla}
+                  {tecla === "borrar" ? "Borrar" : tecla === "ok" ? "Ingresar" : tecla}
                 </button>
               ))}
             </div>
           </div>
         </div>
       </div>
-
-      <style jsx global>{`
-        .pin-display {
-          display: flex;
-          justify-content: center;
-          gap: 0.5rem;
-        }
-        .pin-dot {
-          width: 14px;
-          height: 14px;
+    </main>
+  );
+}
