@@ -28,6 +28,7 @@ export interface FuelLog {
   litros: number;
   conteo_final: number;
   observaciones: string | null;
+  tipo_combustible: "diesel" | "bencina";
   created_at: string;
 }
 

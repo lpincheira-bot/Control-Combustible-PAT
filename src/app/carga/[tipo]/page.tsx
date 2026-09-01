@@ -72,9 +72,10 @@ export default async function CargaTipoPage({
           </Link>
         </p>
 
-        <FuelForm
+              <FuelForm
           vehicles={(vehicles as Vehicle[]) ?? []}
           driverId={user.id}
+          tipo={tipo as "diesel" | "bencina"}
         />
 
         {recentLogs && recentLogs.length > 0 && (

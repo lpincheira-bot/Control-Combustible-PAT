@@ -23,9 +23,11 @@ function todayValue() {
 export default function FuelForm({
   vehicles,
   driverId,
+  tipo,
 }: {
   vehicles: Vehicle[];
   driverId: string;
+  tipo: "diesel" | "bencina";
 }) {
   const router = useRouter();
   const supabase = createClient();
@@ -45,15 +47,11 @@ export default function FuelForm({
     conteoFinal: string;
   }>(null);
 
-  useEffect(() => {
-    if (!vehicleId) {
-      setConteoInicial(null);
-      return;
-    }
+   useEffect(() => {
     let cancelado = false;
     setConteoLoading(true);
     supabase
-      .rpc("get_ultimo_conteo", { p_vehicle_id: vehicleId })
+      .rpc("get_ultimo_conteo", { p_tipo: tipo })
       .then(({ data, error }) => {
         if (cancelado) return;
         setConteoLoading(false);
@@ -66,7 +64,7 @@ export default function FuelForm({
     return () => {
       cancelado = true;
     };
-  }, [vehicleId, supabase]);
+  }, [tipo, supabase]);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -82,7 +80,7 @@ export default function FuelForm({
     }
 
     setLoading(true);
-    const { error } = await supabase.from("fuel_logs").insert({
+  const { error } = await supabase.from("fuel_logs").insert({
       driver_id: driverId,
       vehicle_id: vehicleId,
       fecha: todayValue(),
@@ -91,6 +89,7 @@ export default function FuelForm({
       conteo_inicial: conteoInicial,
       litros: Number(litros),
       observaciones: observaciones || null,
+      tipo_combustible: tipo,
     });
     setLoading(false);
 
