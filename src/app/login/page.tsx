@@ -28,8 +28,8 @@ export default function LoginPage() {
   }
 
   function enviar() {
-    if (pin.length === 0) {
-      setError("Ingresa tu PIN.");
+    if (pin.length !== 4) {
+      setError("El PIN debe tener 4 digitos.");
       return;
     }
     startTransition(async () => {
