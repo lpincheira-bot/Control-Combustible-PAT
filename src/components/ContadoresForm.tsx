@@ -1,23 +1,32 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { actualizarConteoBase } from "@/app/admin/contadores/actions";
 
 type ConfigRow = { tipo: string; conteo_base: number };
 
 export default function ContadoresForm({ config }: { config: ConfigRow[] }) {
+  const router = useRouter();
   const [valores, setValores] = useState<Record<string, string>>(
     Object.fromEntries(config.map((c) => [c.tipo, String(c.conteo_base)]))
   );
   const [isPending, startTransition] = useTransition();
   const [guardadoTipo, setGuardadoTipo] = useState<string | null>(null);
+  const [errorTipo, setErrorTipo] = useState<Record<string, string>>({});
 
   function guardar(tipo: string) {
     const valor = Number(valores[tipo]);
     if (Number.isNaN(valor)) return;
+    setErrorTipo((e) => ({ ...e, [tipo]: "" }));
     startTransition(async () => {
-      await actualizarConteoBase(tipo, valor);
+      const { error } = await actualizarConteoBase(tipo, valor);
+      if (error) {
+        setErrorTipo((e) => ({ ...e, [tipo]: error }));
+        return;
+      }
       setGuardadoTipo(tipo);
+      router.refresh();
       setTimeout(() => setGuardadoTipo(null), 2000);
     });
   }
@@ -45,6 +54,9 @@ export default function ContadoresForm({ config }: { config: ConfigRow[] }) {
               {guardadoTipo === c.tipo ? "Guardado" : "Guardar"}
             </button>
           </div>
+          {errorTipo[c.tipo] && (
+            <p className="text-danger text-xs mt-2">{errorTipo[c.tipo]}</p>
+          )}
         </div>
       ))}
       <style jsx global>{`
