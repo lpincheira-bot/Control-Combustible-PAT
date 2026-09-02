@@ -3,7 +3,8 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import FuelForm from "@/components/FuelForm";
 import LogoutButton from "@/components/LogoutButton";
-import type { Vehicle } from "@/lib/types";
+import type { Vehicle, FuelLogRow } from "@/lib/types";
+import RecentLogs from "@/components/RecentLogs";
 
 const TIPOS_VALIDOS = ["diesel", "bencina"];
 
@@ -78,31 +79,14 @@ export default async function CargaTipoPage({
           tipo={tipo as "diesel" | "bencina"}
         />
 
-        {recentLogs && recentLogs.length > 0 && (
+                {recentLogs && recentLogs.length > 0 && (
           <section className="mt-8">
             <h2 className="text-xs text-ink-muted tracking-wider mb-3">
               TUS ÚLTIMAS CARGAS
             </h2>
-            <ul className="space-y-2">
-              {recentLogs.map((log) => (
-                <li
-                  key={log.id}
-                  className="flex items-center justify-between bg-surface border border-line rounded-sm px-4 py-3"
-                >
-                  <div>
-                    <p className="text-sm">{log.patente}</p>
-                    <p className="text-xs text-ink-muted">
-                      {new Date(log.fecha + "T00:00:00").toLocaleDateString(
-                        "es-CL"
-                      )}{" "}
-                      &middot; {log.hora_carga?.slice(0, 5)}
-                    </p>
-                  </div>
-                  <p className="tabular text-sm">{log.litros} L</p>
-                </li>
-              ))}
-            </ul>
+            <RecentLogs logs={recentLogs as FuelLogRow[]} />
           </section>
+        )}
         )}
 
         <p className="text-center text-xs text-ink-muted mt-8">
