@@ -87,7 +87,6 @@ export default async function CargaTipoPage({
             <RecentLogs logs={recentLogs as FuelLogRow[]} />
           </section>
         )}
-        )}
 
         <p className="text-center text-xs text-ink-muted mt-8">
           ¿Eres administrador?{" "}
