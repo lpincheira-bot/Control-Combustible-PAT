@@ -1,7 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import type { FuelLogRow } from "@/lib/types";
+import { eliminarCarga } from "@/app/admin/actions";
 
 const COLUMNS = [
   "FECHA",
@@ -45,6 +47,21 @@ export default function AdminTable({
   const [patente, setPatente] = useState("");
   const [conductor, setConductor] = useState("");
   const [exporting, setExporting] = useState(false);
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const [eliminandoId, setEliminandoId] = useState<string | null>(null);
+
+  function handleEliminar(id: string) {
+    if (!confirm("¿Eliminar esta carga? Esta acción no se puede deshacer.")) {
+      return;
+    }
+    setEliminandoId(id);
+    startTransition(async () => {
+      await eliminarCarga(id);
+      setEliminandoId(null);
+      router.refresh();
+    });
+  }
 
   const filtered = useMemo(() => {
     return logs.filter((log) => {
@@ -148,6 +165,7 @@ export default function AdminTable({
                   {col}
                 </th>
               ))}
+              <th className="px-3 py-2 font-medium"></th>
             </tr>
           </thead>
           <tbody>
@@ -172,12 +190,24 @@ export default function AdminTable({
                 <td className="px-3 py-2 whitespace-nowrap">
                   {log.conductor}
                 </td>
+                <td className="px-3 py-2 text-right whitespace-nowrap">
+                  <button
+                    onClick={() => handleEliminar(log.id)}
+                    disabled={isPending && eliminandoId === log.id}
+                    style={{ color: "#dc2626" }}
+                    className="text-xs"
+                  >
+                    {isPending && eliminandoId === log.id
+                      ? "Eliminando..."
+                      : "Eliminar"}
+                  </button>
+                </td>
               </tr>
             ))}
             {filtered.length === 0 && (
               <tr>
                 <td
-                  colSpan={COLUMNS.length}
+                  colSpan={COLUMNS.length + 1}
                   className="px-3 py-8 text-center text-paper-ink-muted"
                 >
                   Sin registros para estos filtros.
