@@ -2,6 +2,17 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function updateSession(request: NextRequest) {
+  const path = request.nextUrl.pathname;
+  const isPublic =
+    path === "/login" ||
+    path.startsWith("/_next") ||
+    path.startsWith("/api/cron"); // el cron de respaldo se autentica con su propio secreto, no con sesión de usuario
+
+  // La ruta del cron no necesita ni debe pasar por Supabase Auth.
+  if (isPublic && path.startsWith("/api/cron")) {
+    return NextResponse.next({ request });
+  }
+
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(
@@ -28,9 +39,6 @@ export async function updateSession(request: NextRequest) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-
-  const path = request.nextUrl.pathname;
-  const isPublic = path === "/login" || path.startsWith("/_next");
 
   if (!user && !isPublic) {
     const url = request.nextUrl.clone();
