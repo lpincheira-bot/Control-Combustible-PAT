@@ -81,9 +81,35 @@ export default function FuelForm({
       setError("Ingresa la patente del vehículo externo.");
       return;
     }
+    if (!km.trim()) {
+      setError("Ingresa el kilometraje.");
+      return;
+    }
     if (conteoInicial === null || conteoLoading) {
       setError("Espera un momento, se está calculando el conteo inicial.");
       return;
+    }
+
+    // En diésel, el campo "litros" del formulario en realidad contiene el
+    // conteo final leído del surtidor (contador acumulativo, no reinicia).
+    // Los litros dispensados se calculan por diferencia. En bencina, el
+    // valor se sigue ingresando directamente como litros.
+    let litrosCalculados: number;
+    let nuevoConteo: number;
+
+    if (tipo === "diesel") {
+      const conteoFinal = Number(litros);
+      if (conteoFinal <= conteoInicial) {
+        setError(
+          "El conteo final debe ser mayor que el conteo inicial."
+        );
+        return;
+      }
+      litrosCalculados = conteoFinal - conteoInicial;
+      nuevoConteo = conteoFinal;
+    } else {
+      litrosCalculados = Number(litros);
+      nuevoConteo = conteoInicial + litrosCalculados;
     }
 
     setLoading(true);
@@ -96,7 +122,7 @@ export default function FuelForm({
       hora_carga: nowTimeValue(),
       km: km ? Number(km) : null,
       conteo_inicial: conteoInicial,
-      litros: Number(litros),
+      litros: litrosCalculados,
       observaciones: observaciones || null,
       tipo_combustible: tipo,
     });
@@ -111,10 +137,9 @@ export default function FuelForm({
     const patenteTicket = esExterno
       ? patenteExterna.trim()
       : vehicle?.patente ?? "";
-    const nuevoConteo = conteoInicial + Number(litros);
     setTicket({
       patente: patenteTicket,
-      litros,
+      litros: litrosCalculados.toFixed(2),
       conteoFinal: nuevoConteo.toFixed(2),
     });
 
@@ -201,6 +226,7 @@ export default function FuelForm({
 
       <Field label="Kilometraje">
         <input
+          required
           type="number"
           inputMode="decimal"
           step="0.1"
@@ -224,7 +250,7 @@ export default function FuelForm({
                 : "-"}
           </div>
         </Field>
-        <Field label="Litros">
+        <Field label={tipo === "diesel" ? "Conteo final" : "Litros"}>
           <input
             required
             type="number"
@@ -232,7 +258,13 @@ export default function FuelForm({
             step="0.01"
             value={litros}
             onChange={(e) => setLitros(e.target.value)}
-            placeholder="36"
+            placeholder={
+              tipo === "diesel"
+                ? conteoInicial !== null
+                  ? (conteoInicial + 1).toFixed(2)
+                  : "745790.00"
+                : "36"
+            }
             className="input tabular"
           />
         </Field>
