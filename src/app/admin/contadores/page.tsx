@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import AdminNav from "@/components/AdminNav";
 import ContadoresForm from "@/components/ContadoresForm";
+import AjustesForm, { type AjusteContador } from "@/components/AjustesForm";
 
 export default async function ContadoresPage() {
   const supabase = await createClient();
@@ -23,6 +24,18 @@ export default async function ContadoresPage() {
     .select("*")
     .order("tipo");
 
+  const { data: ajustes, error: ajustesError } = await supabase
+    .from("fuel_adjustments")
+    .select("id, tipo_combustible, fecha, conteo_final, motivo, created_at")
+    .order("fecha", { ascending: false })
+    .order("created_at", { ascending: false });
+
+  if (ajustesError) {
+    throw new Error(
+      `No se pudieron cargar los ajustes: ${ajustesError.message}`
+    );
+  }
+
   return (
     <main className="paper min-h-dvh">
       <AdminNav />
@@ -34,6 +47,7 @@ export default async function ContadoresPage() {
           automaticamente desde el ultimo conteo final.
         </p>
         <ContadoresForm config={config ?? []} />
+        <AjustesForm ajustes={(ajustes as AjusteContador[]) ?? []} />
       </div>
     </main>
   );

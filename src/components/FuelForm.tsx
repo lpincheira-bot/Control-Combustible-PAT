@@ -5,6 +5,19 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { Vehicle } from "@/lib/types";
 
+const GENERADOR_OPTION = "__generador__";
+const GENERADOR_PATENTE = "GENERADOR";
+const GENERADOR_DESCRIPCION = "Concepto generador";
+
+function normalizarPatente(valor: string) {
+  return valor.trim().toUpperCase();
+}
+
+function parseDecimal(valor: string) {
+  const normalizado = valor.trim().replace(/\s+/g, "").replace(",", ".");
+  return /^\d+(?:\.\d+)?$/.test(normalizado) ? Number(normalizado) : NaN;
+}
+
 function nowTimeValue() {
   const d = new Date();
   return `${String(d.getHours()).padStart(2, "0")}:${String(
@@ -29,11 +42,18 @@ export default function FuelForm({
   driverId: string;
   tipo: "diesel" | "bencina";
 }) {
+  const permiteGenerador = tipo === "diesel";
+  const tieneGeneradorReal = vehicles.some(
+    (vehicle) => normalizarPatente(vehicle.patente) === GENERADOR_PATENTE
+  );
+  const mostrarGeneradorVirtual = permiteGenerador && !tieneGeneradorReal;
   const router = useRouter();
   const supabase = createClient();
 
   const [esExterno, setEsExterno] = useState(false);
-  const [vehicleId, setVehicleId] = useState(vehicles[0]?.id ?? "");
+  const [vehicleId, setVehicleId] = useState(
+    vehicles[0]?.id ?? (mostrarGeneradorVirtual ? GENERADOR_OPTION : "")
+  );
   const [patenteExterna, setPatenteExterna] = useState("");
   const [vehiculoExterno, setVehiculoExterno] = useState("");
   const [km, setKm] = useState("");
@@ -73,6 +93,9 @@ export default function FuelForm({
     e.preventDefault();
     setError(null);
 
+    const esGeneradorSeleccionado =
+      !esExterno && permiteGenerador && vehicleId === GENERADOR_OPTION;
+
     if (!esExterno && !vehicleId) {
       setError("Selecciona un vehículo.");
       return;
@@ -96,9 +119,15 @@ export default function FuelForm({
     // valor se sigue ingresando directamente como litros.
     let litrosCalculados: number;
     let nuevoConteo: number;
+    const valorNumerico = parseDecimal(litros);
+
+    if (!Number.isFinite(valorNumerico)) {
+      setError("Ingresa un valor válido. Puedes usar 10.5 o 10,5.");
+      return;
+    }
 
     if (tipo === "diesel") {
-      const conteoFinal = Number(litros);
+      const conteoFinal = valorNumerico;
       if (conteoFinal <= conteoInicial) {
         setError(
           "El conteo final debe ser mayor que el conteo inicial."
@@ -108,16 +137,28 @@ export default function FuelForm({
       litrosCalculados = conteoFinal - conteoInicial;
       nuevoConteo = conteoFinal;
     } else {
-      litrosCalculados = Number(litros);
+      if (valorNumerico <= 0) {
+        setError("Los litros deben ser mayores que cero.");
+        return;
+      }
+      litrosCalculados = valorNumerico;
       nuevoConteo = conteoInicial + litrosCalculados;
     }
 
     setLoading(true);
     const { error } = await supabase.from("fuel_logs").insert({
       driver_id: driverId,
-      vehicle_id: esExterno ? null : vehicleId,
-      patente_externa: esExterno ? patenteExterna.trim() : null,
-      vehiculo_externo: esExterno ? vehiculoExterno.trim() || null : null,
+      vehicle_id: esExterno || esGeneradorSeleccionado ? null : vehicleId,
+      patente_externa: esExterno
+        ? patenteExterna.trim()
+        : esGeneradorSeleccionado
+          ? GENERADOR_PATENTE
+          : null,
+      vehiculo_externo: esExterno
+        ? vehiculoExterno.trim() || null
+        : esGeneradorSeleccionado
+          ? GENERADOR_DESCRIPCION
+          : null,
       fecha: todayValue(),
       hora_carga: nowTimeValue(),
       km: km ? Number(km) : null,
@@ -133,10 +174,14 @@ export default function FuelForm({
       return;
     }
 
-    const vehicle = vehicles.find((v) => v.id === vehicleId);
+    const vehicle = esGeneradorSeleccionado
+      ? null
+      : vehicles.find((v) => v.id === vehicleId);
     const patenteTicket = esExterno
       ? patenteExterna.trim()
-      : vehicle?.patente ?? "";
+      : esGeneradorSeleccionado
+        ? GENERADOR_PATENTE
+        : vehicle?.patente ?? "";
     setTicket({
       patente: patenteTicket,
       litros: litrosCalculados.toFixed(2),
@@ -214,7 +259,14 @@ export default function FuelForm({
             onChange={(e) => setVehicleId(e.target.value)}
             className="input"
           >
-            {vehicles.length === 0 && <option value="">Sin vehículos</option>}
+            {vehicles.length === 0 && !mostrarGeneradorVirtual && (
+              <option value="">Sin vehículos</option>
+            )}
+            {mostrarGeneradorVirtual && (
+              <option value={GENERADOR_OPTION}>
+                {GENERADOR_PATENTE} — {GENERADOR_DESCRIPCION}
+              </option>
+            )}
             {vehicles.map((v) => (
               <option key={v.id} value={v.id}>
                 {v.patente} — {v.vehiculo}
@@ -253,9 +305,8 @@ export default function FuelForm({
         <Field label={tipo === "diesel" ? "Conteo final" : "Litros"}>
           <input
             required
-            type="number"
+            type="text"
             inputMode="decimal"
-            step="0.01"
             value={litros}
             onChange={(e) => setLitros(e.target.value)}
             placeholder={
@@ -263,7 +314,7 @@ export default function FuelForm({
                 ? conteoInicial !== null
                   ? (conteoInicial + 1).toFixed(2)
                   : "745790.00"
-                : "36"
+                : "36,5"
             }
             className="input tabular"
           />
@@ -287,9 +338,7 @@ export default function FuelForm({
 
       <button
         type="submit"
-        disabled={
-          loading || conteoLoading || (!esExterno && vehicles.length === 0)
-        }
+        disabled={loading || conteoLoading || (!esExterno && !vehicleId)}
         className="w-full bg-accent text-accent-ink font-semibold py-3 rounded-sm disabled:opacity-60 active:scale-[0.99] transition"
       >
         {loading ? "Guardando..." : "Registrar carga"}

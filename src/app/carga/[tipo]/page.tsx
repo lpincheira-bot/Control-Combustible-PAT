@@ -5,6 +5,7 @@ import FuelForm from "@/components/FuelForm";
 import LogoutButton from "@/components/LogoutButton";
 import type { Vehicle, FuelLogRow } from "@/lib/types";
 import RecentLogs from "@/components/RecentLogs";
+import { getFuelLogRows } from "@/lib/fuelLogs";
 
 const TIPOS_VALIDOS = ["diesel", "bencina"];
 
@@ -42,13 +43,10 @@ export default async function CargaTipoPage({
     .eq("tipo_combustible", tipo)
     .order("patente");
 
-  const { data: recentLogs } = await supabase
-    .from("fuel_logs_view")
-    .select("*")
-    .eq("conductor", profile?.nombre_completo ?? "")
-    .order("fecha", { ascending: false })
-    .order("hora_carga", { ascending: false })
-    .limit(5);
+  const recentLogs = await getFuelLogRows(supabase, {
+    driverId: user.id,
+    limit: 5,
+  });
 
   const titulo = tipo === "diesel" ? "Diésel" : "Bencina";
 
@@ -79,7 +77,7 @@ export default async function CargaTipoPage({
           tipo={tipo as "diesel" | "bencina"}
         />
 
-                {recentLogs && recentLogs.length > 0 && (
+                {recentLogs.length > 0 && (
           <section className="mt-8">
             <h2 className="text-xs text-ink-muted tracking-wider mb-3">
               TUS ÚLTIMAS CARGAS
