@@ -42,7 +42,7 @@ export default async function VehiculosPage() {
             <input
               name="patente"
               required
-              placeholder="HTJ1833"
+              placeholder="HTJ1833 o GENERADOR"
               className="paper-field tabular"
             />
           </label>

@@ -47,7 +47,7 @@ create trigger on_auth_user_created
 -- ----------------------------------------------------------------------------
 create table if not exists public.vehicles (
   id uuid primary key default gen_random_uuid(),
-  patente text not null unique,
+  patente text not null unique, -- Puede registrar patentes reales o el concepto GENERADOR
   vehiculo text not null, -- marca / modelo, ej: "Kia Rio", "Toyota Hilux"
   activo boolean not null default true,
   created_at timestamptz not null default now()
