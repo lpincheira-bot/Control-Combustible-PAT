@@ -43,6 +43,15 @@ export default async function CargaTipoPage({
     .eq("tipo_combustible", tipo)
     .order("patente");
 
+  const { data: conteoInicial, error: conteoError } = await supabase.rpc(
+    "get_ultimo_conteo",
+    { p_tipo: tipo }
+  );
+
+  if (conteoError) {
+    throw new Error(`No se pudo cargar el contador: ${conteoError.message}`);
+  }
+
   const recentLogs = await getFuelLogRows(supabase, {
     driverId: user.id,
     limit: 5,
@@ -75,7 +84,8 @@ export default async function CargaTipoPage({
           vehicles={(vehicles as Vehicle[]) ?? []}
           driverId={user.id}
           tipo={tipo as "diesel" | "bencina"}
-        />
+                conteoInicial={Number(conteoInicial ?? 0)}
+              />
 
                 {recentLogs.length > 0 && (
           <section className="mt-8">

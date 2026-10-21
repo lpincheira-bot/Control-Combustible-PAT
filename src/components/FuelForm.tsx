@@ -36,32 +36,37 @@ function todayValue() {
 export default function FuelForm({
   vehicles,
   driverId,
+  tipo,
+  conteoInicial: conteoInicialBase,
 }: {
   vehicles: Vehicle[];
   driverId: string;
+  tipo: "diesel" | "bencina";
+  conteoInicial: number;
 }) {
   const permiteGenerador = tipo === "diesel";
-  const tieneGeneradorReal = vehicles.some(
+  const vehiculoGenerador = vehicles.find(
     (vehicle) => normalizarPatente(vehicle.patente) === GENERADOR_PATENTE
   );
-  const mostrarGeneradorVirtual = permiteGenerador && !tieneGeneradorReal;
+  const mostrarGeneradorVirtual = permiteGenerador && !vehiculoGenerador;
   const router = useRouter();
   const supabase = createClient();
 
-<<<<<<< HEAD
   const [esExterno, setEsExterno] = useState(false);
   const [vehicleId, setVehicleId] = useState(
-    vehicles[0]?.id ?? (mostrarGeneradorVirtual ? GENERADOR_OPTION : "")
+    vehiculoGenerador?.id ??
+      (mostrarGeneradorVirtual
+        ? GENERADOR_OPTION
+        : (vehicles[0]?.id ?? ""))
   );
   const [patenteExterna, setPatenteExterna] = useState("");
   const [vehiculoExterno, setVehiculoExterno] = useState("");
-=======
-  const [vehicleId, setVehicleId] = useState(vehicles[0]?.id ?? "");
   const [fecha, setFecha] = useState(todayValue());
   const [hora, setHora] = useState(nowTimeValue());
->>>>>>> main
   const [km, setKm] = useState("");
-  const [conteoInicial, setConteoInicial] = useState("");
+  const [conteoInicial, setConteoInicial] = useState(
+    conteoInicialBase.toFixed(2)
+  );
   const [litros, setLitros] = useState("");
   const [observaciones, setObservaciones] = useState("");
 
@@ -77,9 +82,8 @@ export default function FuelForm({
     e.preventDefault();
     setError(null);
 
-<<<<<<< HEAD
     const esGeneradorSeleccionado =
-      !esExterno && permiteGenerador && vehicleId === GENERADOR_OPTION;
+      !esExterno && mostrarGeneradorVirtual && vehicleId === GENERADOR_OPTION;
 
     if (!esExterno && !vehicleId) {
       setError("Selecciona un vehículo.");
@@ -89,61 +93,23 @@ export default function FuelForm({
       setError("Ingresa la patente del vehículo externo.");
       return;
     }
-    if (!km.trim()) {
-      setError("Ingresa el kilometraje.");
-      return;
-    }
-    if (conteoInicial === null || conteoLoading) {
-      setError("Espera un momento, se está calculando el conteo inicial.");
-      return;
-    }
 
-    // En diésel, el campo "litros" del formulario en realidad contiene el
-    // conteo final leído del surtidor (contador acumulativo, no reinicia).
-    // Los litros dispensados se calculan por diferencia. En bencina, el
-    // valor se sigue ingresando directamente como litros.
-    let litrosCalculados: number;
-    let nuevoConteo: number;
-    const valorNumerico = parseDecimal(litros);
-
-    if (!Number.isFinite(valorNumerico)) {
-      setError("Ingresa un valor válido. Puedes usar 10.5 o 10,5.");
+    const conteoInicialNumero = parseDecimal(conteoInicial);
+    if (!Number.isFinite(conteoInicialNumero) || conteoInicialNumero < 0) {
+      setError("El conteo inicial no es válido.");
       return;
     }
 
-    if (tipo === "diesel") {
-      const conteoFinal = valorNumerico;
-      if (conteoFinal <= conteoInicial) {
-        setError(
-          "El conteo final debe ser mayor que el conteo inicial."
-        );
-        return;
-      }
-      litrosCalculados = conteoFinal - conteoInicial;
-      nuevoConteo = conteoFinal;
-    } else {
-      if (valorNumerico <= 0) {
-        setError("Los litros deben ser mayores que cero.");
-        return;
-      }
-      litrosCalculados = valorNumerico;
-      nuevoConteo = conteoInicial + litrosCalculados;
-    }
-=======
-    // Permite ingresar decimales con punto o coma (ej: 12.5 / 12,5)
-    const litrosNumero = Number(litros.replace(",", "."));
-    const conteoInicialNumero = Number(conteoInicial.replace(",", "."));
-
-    if (!vehicleId) {
-      setError("Selecciona un vehículo.");
+    const litrosNumero = parseDecimal(litros);
+    if (!Number.isFinite(litrosNumero) || litrosNumero <= 0) {
+      setError("Ingresa litros mayores que cero. Puedes usar 10.5 o 10,5.");
       return;
     }
->>>>>>> main
 
+    const conteoFinal = conteoInicialNumero + litrosNumero;
     setLoading(true);
     const { error } = await supabase.from("fuel_logs").insert({
       driver_id: driverId,
-<<<<<<< HEAD
       vehicle_id: esExterno || esGeneradorSeleccionado ? null : vehicleId,
       patente_externa: esExterno
         ? patenteExterna.trim()
@@ -155,17 +121,13 @@ export default function FuelForm({
         : esGeneradorSeleccionado
           ? GENERADOR_DESCRIPCION
           : null,
-      fecha: todayValue(),
-      hora_carga: nowTimeValue(),
-=======
-      vehicle_id: vehicleId,
       fecha,
       hora_carga: `${hora}:00`,
->>>>>>> main
       km: km ? Number(km) : null,
       conteo_inicial: conteoInicialNumero,
       litros: litrosNumero,
       observaciones: observaciones || null,
+      tipo_combustible: tipo,
     });
     setLoading(false);
 
@@ -174,7 +136,6 @@ export default function FuelForm({
       return;
     }
 
-<<<<<<< HEAD
     const vehicle = esGeneradorSeleccionado
       ? null
       : vehicles.find((v) => v.id === vehicleId);
@@ -183,19 +144,18 @@ export default function FuelForm({
       : esGeneradorSeleccionado
         ? GENERADOR_PATENTE
         : vehicle?.patente ?? "";
-=======
-    const vehicle = vehicles.find((v) => v.id === vehicleId);
->>>>>>> main
-    setTicket({
-      patente: vehicle?.patente ?? "",
-      litros,
-      conteoFinal: (conteoInicialNumero + litrosNumero).toFixed(2),
-    });
 
+    setTicket({
+      patente: patenteTicket,
+      litros: litrosNumero.toFixed(2),
+      conteoFinal: conteoFinal.toFixed(2),
+    });
+    setConteoInicial(conteoFinal.toFixed(2));
     setKm("");
-    setConteoInicial("");
     setLitros("");
     setObservaciones("");
+    setPatenteExterna("");
+    setVehiculoExterno("");
     router.refresh();
   }
 
@@ -222,27 +182,41 @@ export default function FuelForm({
       onSubmit={handleSubmit}
       className="bg-surface border border-line rounded-sm p-5 space-y-4"
     >
-      <Field label="Vehículo">
-        <select
-          required
-          value={vehicleId}
-          onChange={(e) => setVehicleId(e.target.value)}
-          className="input"
+      <div className="flex items-center justify-between">
+        <span className="block text-xs text-ink-muted">Vehículo</span>
+        <button
+          type="button"
+          onClick={() => setEsExterno((actual) => !actual)}
+          className="text-xs text-accent"
         >
-          {vehicles.length === 0 && <option value="">Sin vehículos</option>}
-          {vehicles.map((v) => (
-            <option key={v.id} value={v.id}>
-              {v.patente} — {v.vehiculo}
-            </option>
-          ))}
-        </select>
-      </Field>
+          {esExterno ? "Elegir de la lista" : "Es un vehículo externo"}
+        </button>
+      </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Fecha">
-          <input
+      {esExterno ? (
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Patente">
+            <input
+              required
+              value={patenteExterna}
+              onChange={(e) => setPatenteExterna(e.target.value)}
+              placeholder="AA-BB-11"
+              className="input"
+            />
+          </Field>
+          <Field label="Descripción (opcional)">
+            <input
+              value={vehiculoExterno}
+              onChange={(e) => setVehiculoExterno(e.target.value)}
+              placeholder="Camioneta blanca"
+              className="input"
+            />
+          </Field>
+        </div>
+      ) : (
+        <Field label="">
+          <select
             required
-<<<<<<< HEAD
             value={vehicleId}
             onChange={(e) => setVehicleId(e.target.value)}
             className="input"
@@ -261,13 +235,18 @@ export default function FuelForm({
               </option>
             ))}
           </select>
-=======
+        </Field>
+      )}
+
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Fecha">
+          <input
+            required
             type="date"
             value={fecha}
             onChange={(e) => setFecha(e.target.value)}
             className="input tabular"
           />
->>>>>>> main
         </Field>
         <Field label="Hora de carga">
           <input
@@ -294,16 +273,12 @@ export default function FuelForm({
 
       <div className="grid grid-cols-2 gap-3">
         <Field label="Conteo inicial">
-          <input
-            required
-            type="number"
-            inputMode="decimal"
-            step="0.01"
-            value={conteoInicial}
-            onChange={(e) => setConteoInicial(e.target.value)}
-            placeholder="1059614"
+          <div
             className="input tabular"
-          />
+            style={{ opacity: 0.7, cursor: "not-allowed" }}
+          >
+            {Number(conteoInicial).toFixed(2)}
+          </div>
         </Field>
         <Field label="Litros">
           <input
@@ -312,17 +287,7 @@ export default function FuelForm({
             inputMode="decimal"
             value={litros}
             onChange={(e) => setLitros(e.target.value)}
-<<<<<<< HEAD
-            placeholder={
-              tipo === "diesel"
-                ? conteoInicial !== null
-                  ? (conteoInicial + 1).toFixed(2)
-                  : "745790.00"
-                : "36,5"
-            }
-=======
-            placeholder="36"
->>>>>>> main
+            placeholder="36,5"
             className="input tabular"
           />
         </Field>
@@ -345,11 +310,7 @@ export default function FuelForm({
 
       <button
         type="submit"
-<<<<<<< HEAD
-        disabled={loading || conteoLoading || (!esExterno && !vehicleId)}
-=======
-        disabled={loading || vehicles.length === 0}
->>>>>>> main
+        disabled={loading || (!esExterno && !vehicleId)}
         className="w-full bg-accent text-accent-ink font-semibold py-3 rounded-sm disabled:opacity-60 active:scale-[0.99] transition"
       >
         {loading ? "Guardando..." : "Registrar carga"}
