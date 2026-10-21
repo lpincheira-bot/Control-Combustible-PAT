@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import AdminNav from "@/components/AdminNav";
 import AdminTable from "@/components/AdminTable";
-import type { FuelLogRow } from "@/lib/types";
+import { getFuelLogRows } from "@/lib/fuelLogs";
 
 export default async function AdminPage() {
   const supabase = await createClient();
@@ -20,13 +20,7 @@ export default async function AdminPage() {
 
   if (profile?.role !== "admin") redirect("/carga");
 
-  const { data: logs } = await supabase
-    .from("fuel_logs_view")
-    .select("*")
-    .order("fecha", { ascending: false })
-    .order("hora_carga", { ascending: false });
-
-  const rows = (logs as FuelLogRow[]) ?? [];
+  const rows = await getFuelLogRows(supabase);
   const vehiculos = Array.from(new Set(rows.map((r) => r.patente))).sort();
   const conductores = Array.from(new Set(rows.map((r) => r.conductor))).sort();
 

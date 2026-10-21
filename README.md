@@ -11,11 +11,15 @@ la planilla en Excel cuando la necesite.
   "conductor" por defecto); tú asciendes a quien necesites a "admin".
 - **Formulario de carga** (`/carga`): fecha, hora, KM, vehículo, conteo
   inicial y litros — igual a las columnas de la planilla en papel. El mes y
-  el conteo final se calculan solos.
+  el conteo final se calculan solos. En diésel, la lista incluye la opción
+  fija **GENERADOR** como concepto.
 - **Panel de administración** (`/admin`): tabla con todos los registros,
   filtros por fecha/vehículo/conductor, y botón **"Descargar planilla
   (.xlsx)"** que genera un Excel con las mismas columnas de la planilla
   original.
+- **Ajustes de contador** (`Admin → Contadores`): los administradores pueden
+  registrar fecha, nuevo conteo final y motivo; cada ajuste queda en el
+  historial y afecta el conteo de las próximas cargas.
 - **Gestión de vehículos y conductores** (`/admin/vehiculos`,
   `/admin/conductores`).
 
@@ -26,7 +30,10 @@ la planilla en Excel cuando la necesite.
    contenido de [`supabase/schema.sql`](./supabase/schema.sql) y presiona
    **Run**. Esto crea las tablas, las reglas de seguridad (RLS) y el
    trigger que crea un perfil automáticamente cuando alguien se registra.
-3. Ve a **Project Settings → API** y copia:
+3. Ejecuta también [`supabase/ajustes.sql`](./supabase/ajustes.sql) en SQL
+   Editor para habilitar los ajustes de contador, tanto en proyectos nuevos
+   como en instalaciones existentes.
+4. Ve a **Project Settings → API** y copia:
    - `Project URL`
    - `anon public` key
 

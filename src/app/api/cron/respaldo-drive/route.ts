@@ -4,6 +4,7 @@ import * as XLSX from "xlsx";
 import { createClient } from "@supabase/supabase-js";
 import { Readable } from "stream";
 import type { FuelLogRow } from "@/lib/types";
+import { getFuelLogRows } from "@/lib/fuelLogs";
 
 const COLUMNS = [
   "FECHA",
@@ -88,17 +89,7 @@ export async function GET(request: NextRequest) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    const { data: logs, error } = await supabase
-      .from("fuel_logs_view")
-      .select("*")
-      .order("fecha", { ascending: true })
-      .order("hora_carga", { ascending: true });
-
-    if (error) {
-      throw new Error(`Error al leer los registros: ${error.message}`);
-    }
-
-    const filas = (logs as FuelLogRow[]) ?? [];
+    const filas = await getFuelLogRows(supabase, { sortDirection: "asc" });
 
     const sheetData: (string | number)[][] = [[...COLUMNS], ...filas.map(toRow)];
     const sheet = XLSX.utils.aoa_to_sheet(sheetData);
