@@ -100,13 +100,37 @@ export default function FuelForm({
       return;
     }
 
-    const litrosNumero = parseDecimal(litros);
-    if (!Number.isFinite(litrosNumero) || litrosNumero <= 0) {
-      setError("Ingresa litros mayores que cero. Puedes usar 10.5 o 10,5.");
+    const valorIngresado = parseDecimal(litros);
+    if (!Number.isFinite(valorIngresado)) {
+      setError(
+        tipo === "diesel"
+          ? "Ingresa un conteo final válido. Puedes usar 10.5 o 10,5."
+          : "Ingresa litros válidos. Puedes usar 10.5 o 10,5."
+      );
       return;
     }
 
-    const conteoFinal = conteoInicialNumero + litrosNumero;
+    let litrosCalculados: number;
+    let conteoFinal: number;
+
+    if (tipo === "diesel") {
+      if (valorIngresado <= conteoInicialNumero) {
+        setError("El conteo final debe ser mayor que el conteo inicial.");
+        return;
+      }
+
+      conteoFinal = valorIngresado;
+      litrosCalculados = conteoFinal - conteoInicialNumero;
+    } else {
+      if (valorIngresado <= 0) {
+        setError("Los litros deben ser mayores que cero.");
+        return;
+      }
+
+      litrosCalculados = valorIngresado;
+      conteoFinal = conteoInicialNumero + litrosCalculados;
+    }
+
     setLoading(true);
     const { error } = await supabase.from("fuel_logs").insert({
       driver_id: driverId,
@@ -125,7 +149,7 @@ export default function FuelForm({
       hora_carga: `${hora}:00`,
       km: km ? Number(km) : null,
       conteo_inicial: conteoInicialNumero,
-      litros: litrosNumero,
+      litros: litrosCalculados,
       observaciones: observaciones || null,
       tipo_combustible: tipo,
     });
@@ -147,7 +171,7 @@ export default function FuelForm({
 
     setTicket({
       patente: patenteTicket,
-      litros: litrosNumero.toFixed(2),
+      litros: litrosCalculados.toFixed(2),
       conteoFinal: conteoFinal.toFixed(2),
     });
     setConteoInicial(conteoFinal.toFixed(2));
@@ -280,14 +304,18 @@ export default function FuelForm({
             {Number(conteoInicial).toFixed(2)}
           </div>
         </Field>
-        <Field label="Litros">
+        <Field label={tipo === "diesel" ? "Conteo final" : "Litros"}>
           <input
             required
             type="text"
             inputMode="decimal"
             value={litros}
             onChange={(e) => setLitros(e.target.value)}
-            placeholder="36,5"
+            placeholder={
+              tipo === "diesel"
+                ? (Number(conteoInicial) + 1).toFixed(2)
+                : "36,5"
+            }
             className="input tabular"
           />
         </Field>
