@@ -20,7 +20,7 @@ export interface Vehicle {
 export interface FuelLog {
   id: string;
   driver_id: string;
-  vehicle_id: string;
+  vehicle_id: string | null;
   fecha: string; // YYYY-MM-DD
   hora_carga: string; // HH:MM:SS
   km: number | null;
@@ -34,9 +34,11 @@ export interface FuelLog {
 
 export interface FuelLogRow {
   id: string;
+  vehicle_id: string | null;
   fecha: string;
   hora_carga: string;
   km: number | null;
+  tipo_combustible: "diesel" | "bencina";
   patente: string;
   vehiculo: string;
   conteo_inicial: number;

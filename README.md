@@ -16,7 +16,8 @@ la planilla en Excel cuando la necesite.
 - **Panel de administración** (`/admin`): tabla con todos los registros,
   filtros por fecha/vehículo/conductor, y botón **"Descargar planilla
   (.xlsx)"** que genera un Excel con las mismas columnas de la planilla
-  original.
+  original. Permite editar fecha, hora, vehículo, KM, conteo inicial,
+  litros y observaciones de cada carga.
 - **Ajustes de contador** (`Admin → Contadores`): los administradores pueden
   registrar fecha, nuevo conteo final y motivo; cada ajuste queda en el
   historial y afecta el conteo de las próximas cargas.

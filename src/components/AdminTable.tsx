@@ -1,9 +1,24 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { Fragment, useMemo, useState, useTransition, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import type { FuelLogRow } from "@/lib/types";
-import { eliminarCarga } from "@/app/admin/actions";
+import type { FuelLogRow, Vehicle } from "@/lib/types";
+import { actualizarCarga, eliminarCarga } from "@/app/admin/actions";
+
+const GENERADOR_OPTION = "__generador__";
+const EXTERNO_OPTION = "__externo__";
+
+type EditValues = {
+  fecha: string;
+  hora: string;
+  vehicleId: string;
+  patenteExterna: string;
+  vehiculoExterno: string;
+  km: string;
+  conteoInicial: string;
+  litros: string;
+  observaciones: string;
+};
 
 const COLUMNS = [
   "FECHA",
@@ -37,10 +52,12 @@ export default function AdminTable({
   logs,
   vehiculos,
   conductores,
+  vehicles,
 }: {
   logs: FuelLogRow[];
   vehiculos: string[];
   conductores: string[];
+  vehicles: Vehicle[];
 }) {
   const [desde, setDesde] = useState("");
   const [hasta, setHasta] = useState("");
@@ -50,6 +67,58 @@ export default function AdminTable({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [eliminandoId, setEliminandoId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editValues, setEditValues] = useState<EditValues | null>(null);
+  const [editError, setEditError] = useState<string | null>(null);
+
+  function iniciarEdicion(log: FuelLogRow) {
+    setEditingId(log.id);
+    setEditError(null);
+    setEditValues({
+      fecha: log.fecha,
+      hora: log.hora_carga.slice(0, 5),
+      vehicleId:
+        log.vehicle_id ??
+        (log.patente.trim().toUpperCase() === "GENERADOR"
+          ? GENERADOR_OPTION
+          : EXTERNO_OPTION),
+      patenteExterna:
+        log.vehicle_id || log.patente.trim().toUpperCase() === "GENERADOR"
+          ? ""
+          : log.patente,
+      vehiculoExterno:
+        log.vehicle_id || log.patente.trim().toUpperCase() === "GENERADOR"
+          ? ""
+          : log.vehiculo,
+      km: log.km === null ? "" : String(log.km),
+      conteoInicial: String(log.conteo_inicial),
+      litros: String(log.litros),
+      observaciones: log.observaciones ?? "",
+    });
+  }
+
+  function cancelarEdicion() {
+    setEditingId(null);
+    setEditValues(null);
+    setEditError(null);
+  }
+
+  function handleEditar(e: FormEvent<HTMLFormElement>, id: string) {
+    e.preventDefault();
+    if (!editValues) return;
+
+    setEditError(null);
+    startTransition(async () => {
+      const resultado = await actualizarCarga({ id, ...editValues });
+      if (resultado.error) {
+        setEditError(resultado.error);
+        return;
+      }
+
+      cancelarEdicion();
+      router.refresh();
+    });
+  }
 
   function handleEliminar(id: string) {
     if (!confirm("¿Eliminar esta carga? Esta acción no se puede deshacer.")) {
@@ -169,41 +238,239 @@ export default function AdminTable({
             </tr>
           </thead>
           <tbody>
-            {filtered.map((log) => (
-              <tr
-                key={log.id}
-                className="border-b border-paper-line last:border-0"
-              >
-                <td className="px-3 py-2 tabular whitespace-nowrap">
-                  {log.fecha}
-                </td>
-                <td className="px-3 py-2 tabular whitespace-nowrap">
-                  {log.hora_carga?.slice(0, 5)}
-                </td>
-                <td className="px-3 py-2 tabular">{log.km ?? "—"}</td>
-                <td className="px-3 py-2 whitespace-nowrap">{log.patente}</td>
-                <td className="px-3 py-2 whitespace-nowrap">{log.vehiculo}</td>
-                <td className="px-3 py-2 tabular">{log.conteo_inicial}</td>
-                <td className="px-3 py-2 tabular">{log.litros}</td>
-                <td className="px-3 py-2 tabular">{log.mes}</td>
-                <td className="px-3 py-2 tabular">{log.conteo_final}</td>
-                <td className="px-3 py-2 whitespace-nowrap">
-                  {log.conductor}
-                </td>
-                <td className="px-3 py-2 text-right whitespace-nowrap">
-                  <button
-                    onClick={() => handleEliminar(log.id)}
-                    disabled={isPending && eliminandoId === log.id}
-                    style={{ color: "#dc2626" }}
-                    className="text-xs"
-                  >
-                    {isPending && eliminandoId === log.id
-                      ? "Eliminando..."
-                      : "Eliminar"}
-                  </button>
-                </td>
-              </tr>
-            ))}
+            {filtered.map((log) => {
+              const vehiculosCompatibles = vehicles.filter(
+                (vehicle) =>
+                  vehicle.tipo_combustible === log.tipo_combustible ||
+                  vehicle.id === log.vehicle_id
+              );
+              const tieneGenerador = vehiculosCompatibles.some(
+                (vehicle) =>
+                  vehicle.patente.trim().toUpperCase() === "GENERADOR"
+              );
+
+              return (
+                <Fragment key={log.id}>
+                  <tr className="border-b border-paper-line last:border-0">
+                    <td className="px-3 py-2 tabular whitespace-nowrap">
+                      {log.fecha}
+                    </td>
+                    <td className="px-3 py-2 tabular whitespace-nowrap">
+                      {log.hora_carga?.slice(0, 5)}
+                    </td>
+                    <td className="px-3 py-2 tabular">{log.km ?? "—"}</td>
+                    <td className="px-3 py-2 whitespace-nowrap">
+                      {log.patente}
+                    </td>
+                    <td className="px-3 py-2 whitespace-nowrap">
+                      {log.vehiculo}
+                    </td>
+                    <td className="px-3 py-2 tabular">
+                      {log.conteo_inicial}
+                    </td>
+                    <td className="px-3 py-2 tabular">{log.litros}</td>
+                    <td className="px-3 py-2 tabular">{log.mes}</td>
+                    <td className="px-3 py-2 tabular">{log.conteo_final}</td>
+                    <td className="px-3 py-2 whitespace-nowrap">
+                      {log.conductor}
+                    </td>
+                    <td className="px-3 py-2 text-right whitespace-nowrap">
+                      <button
+                        type="button"
+                        onClick={() => iniciarEdicion(log)}
+                        disabled={isPending}
+                        className="text-xs text-paper-accent mr-3"
+                      >
+                        Editar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleEliminar(log.id)}
+                        disabled={isPending && eliminandoId === log.id}
+                        style={{ color: "#dc2626" }}
+                        className="text-xs"
+                      >
+                        {isPending && eliminandoId === log.id
+                          ? "Eliminando..."
+                          : "Eliminar"}
+                      </button>
+                    </td>
+                  </tr>
+                  {editingId === log.id && editValues && (
+                    <tr className="border-b border-paper-line bg-paper-surface">
+                      <td colSpan={COLUMNS.length + 1} className="p-4">
+                        <form
+                          onSubmit={(e) => handleEditar(e, log.id)}
+                          className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end"
+                        >
+                          <EditField label="Fecha">
+                            <input
+                              required
+                              type="date"
+                              value={editValues.fecha}
+                              onChange={(e) =>
+                                setEditValues({
+                                  ...editValues,
+                                  fecha: e.target.value,
+                                })
+                              }
+                              className="paper-input w-full"
+                            />
+                          </EditField>
+                          <EditField label="Hora">
+                            <input
+                              required
+                              type="time"
+                              value={editValues.hora}
+                              onChange={(e) =>
+                                setEditValues({
+                                  ...editValues,
+                                  hora: e.target.value,
+                                })
+                              }
+                              className="paper-input w-full"
+                            />
+                          </EditField>
+                          <EditField label="Vehículo">
+                            <select
+                              required
+                              value={editValues.vehicleId}
+                              onChange={(e) =>
+                                setEditValues({
+                                  ...editValues,
+                                  vehicleId: e.target.value,
+                                })
+                              }
+                              className="paper-input w-full"
+                            >
+                              <option value={EXTERNO_OPTION}>
+                                Vehículo externo
+                              </option>
+                              {log.tipo_combustible === "diesel" &&
+                                (!tieneGenerador ||
+                                  editValues.vehicleId === GENERADOR_OPTION) && (
+                                  <option value={GENERADOR_OPTION}>
+                                    GENERADOR — Concepto generador
+                                  </option>
+                                )}
+                              {vehiculosCompatibles.map((vehicle) => (
+                                <option key={vehicle.id} value={vehicle.id}>
+                                  {vehicle.patente} — {vehicle.vehiculo}
+                                </option>
+                              ))}
+                            </select>
+                          </EditField>
+                          {editValues.vehicleId === EXTERNO_OPTION && (
+                            <>
+                              <EditField label="Patente externa">
+                                <input
+                                  required
+                                  value={editValues.patenteExterna}
+                                  onChange={(e) =>
+                                    setEditValues({
+                                      ...editValues,
+                                      patenteExterna: e.target.value,
+                                    })
+                                  }
+                                  className="paper-input w-full"
+                                />
+                              </EditField>
+                              <EditField label="Descripción del vehículo">
+                                <input
+                                  value={editValues.vehiculoExterno}
+                                  onChange={(e) =>
+                                    setEditValues({
+                                      ...editValues,
+                                      vehiculoExterno: e.target.value,
+                                    })
+                                  }
+                                  className="paper-input w-full"
+                                />
+                              </EditField>
+                            </>
+                          )}
+                          <EditField label="Kilometraje">
+                            <input
+                              inputMode="decimal"
+                              value={editValues.km}
+                              onChange={(e) =>
+                                setEditValues({
+                                  ...editValues,
+                                  km: e.target.value,
+                                })
+                              }
+                              className="paper-input w-full tabular"
+                            />
+                          </EditField>
+                          <EditField label="Conteo inicial">
+                            <input
+                              required
+                              inputMode="decimal"
+                              value={editValues.conteoInicial}
+                              onChange={(e) =>
+                                setEditValues({
+                                  ...editValues,
+                                  conteoInicial: e.target.value,
+                                })
+                              }
+                              className="paper-input w-full tabular"
+                            />
+                          </EditField>
+                          <EditField label="Litros">
+                            <input
+                              required
+                              inputMode="decimal"
+                              value={editValues.litros}
+                              onChange={(e) =>
+                                setEditValues({
+                                  ...editValues,
+                                  litros: e.target.value,
+                                })
+                              }
+                              className="paper-input w-full tabular"
+                            />
+                          </EditField>
+                          <EditField label="Observaciones">
+                            <input
+                              value={editValues.observaciones}
+                              onChange={(e) =>
+                                setEditValues({
+                                  ...editValues,
+                                  observaciones: e.target.value,
+                                })
+                              }
+                              className="paper-input w-full"
+                            />
+                          </EditField>
+                          <div className="flex items-center gap-3 md:col-span-3">
+                            <button
+                              type="submit"
+                              disabled={isPending}
+                              className="bg-paper-ink text-paper-bg font-medium px-4 py-2 rounded-sm disabled:opacity-60"
+                            >
+                              {isPending ? "Guardando..." : "Guardar cambios"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={cancelarEdicion}
+                              disabled={isPending}
+                              className="text-paper-ink-muted text-sm"
+                            >
+                              Cancelar
+                            </button>
+                            {editError && (
+                              <p className="text-danger text-sm" role="alert">
+                                {editError}
+                              </p>
+                            )}
+                          </div>
+                        </form>
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              );
+            })}
             {filtered.length === 0 && (
               <tr>
                 <td
@@ -233,6 +500,21 @@ export default function AdminTable({
         }
       `}</style>
     </div>
+  );
+}
+
+function EditField({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="block">
+      <span className="block text-xs text-paper-ink-muted mb-1">{label}</span>
+      {children}
+    </label>
   );
 }
 
