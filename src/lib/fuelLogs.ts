@@ -15,6 +15,7 @@ type FuelLogRecord = {
   conteo_final: number | null;
   observaciones: string | null;
   created_at: string;
+  tipo_combustible: "diesel" | "bencina";
   patente_externa?: string | null;
   vehiculo_externo?: string | null;
 };
@@ -128,9 +129,11 @@ async function hydrateFuelLogRows(
 
     return {
       id: log.id,
+      vehicle_id: log.vehicle_id,
       fecha: log.fecha,
       hora_carga: log.hora_carga,
       km: log.km,
+      tipo_combustible: log.tipo_combustible,
       patente,
       vehiculo,
       conteo_inicial: log.conteo_inicial,
