@@ -21,7 +21,8 @@ la planilla en Excel cuando la necesite.
 - **Ajustes de contador** (`Admin → Contadores`): los administradores pueden
   registrar fecha, nuevo conteo final y motivo; cada ajuste queda en el
   historial y afecta el conteo de las próximas cargas. El módulo también
-  resume el consumo mensual de diésel y bencina, con sus totales acumulados.
+  permite consultar litros consumidos en un período elegido y resume el
+  consumo mensual de diésel y bencina, con sus totales acumulados.
 - **Gestión de vehículos y conductores** (`/admin/vehiculos`,
   `/admin/conductores`).
 

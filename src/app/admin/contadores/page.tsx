@@ -6,6 +6,7 @@ import AjustesForm, { type AjusteContador } from "@/components/AjustesForm";
 import ConsumoMensual, {
   type ConsumoMensualRow,
 } from "@/components/ConsumoMensual";
+import ConsumoPeriodo from "@/components/ConsumoPeriodo";
 
 const TAMANO_PAGINA = 1000;
 
@@ -95,6 +96,7 @@ export default async function ContadoresPage() {
           automaticamente desde el ultimo conteo final.
         </p>
         <ContadoresForm config={config ?? []} />
+        <ConsumoPeriodo />
         <ConsumoMensual consumos={resumenMensual} />
         <AjustesForm ajustes={(ajustes as AjusteContador[]) ?? []} />
       </div>
