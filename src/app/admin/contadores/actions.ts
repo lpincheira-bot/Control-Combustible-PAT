@@ -114,3 +114,61 @@ export async function agregarAjuste({
   revalidatePath("/carga", "layout");
   return { error: null };
 }
+
+export async function consultarConsumoPeriodo(desde: string, hasta: string) {
+  const { supabase, error: authError } = await verificarAdmin();
+  if (authError) {
+    return { data: null, error: authError };
+  }
+
+  if (!fechaEsValida(desde) || !fechaEsValida(hasta)) {
+    return { data: null, error: "Ingresa un período válido." };
+  }
+  if (desde > hasta) {
+    return {
+      data: null,
+      error: "La fecha inicial no puede ser posterior a la fecha final.",
+    };
+  }
+
+  const totales = { diesel: 0, bencina: 0, cargas: 0 };
+  const tamanoPagina = 1000;
+  let inicioPagina = 0;
+
+  while (true) {
+    const { data: cargas, error } = await supabase
+      .from("fuel_logs")
+      .select("tipo_combustible, litros")
+      .gte("fecha", desde)
+      .lte("fecha", hasta)
+      .order("fecha", { ascending: true })
+      .order("id", { ascending: true })
+      .range(inicioPagina, inicioPagina + tamanoPagina - 1);
+
+    if (error) {
+      console.error("No se pudo consultar el consumo por período:", error.message);
+      return { data: null, error: "No se pudo calcular el consumo del período." };
+    }
+
+    const pagina = (cargas ?? []) as {
+      tipo_combustible: "diesel" | "bencina";
+      litros: number;
+    }[];
+
+    for (const carga of pagina) {
+      totales[carga.tipo_combustible] += Number(carga.litros);
+      totales.cargas += 1;
+    }
+
+    if (pagina.length < tamanoPagina) break;
+    inicioPagina += tamanoPagina;
+  }
+
+  return {
+    data: {
+      ...totales,
+      total: totales.diesel + totales.bencina,
+    },
+    error: null,
+  };
+}
